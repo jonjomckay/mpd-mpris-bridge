@@ -1,0 +1,12 @@
+{
+  "dependencies": {
+    "dbus-native": "sidorares/dbus-native#master",
+    "mpd-server": "^1.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^1.19.1"
+  },
+  "scripts": {
+    "start": "nodemon index.js"
+  }
+}
