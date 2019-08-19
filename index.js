@@ -86,9 +86,6 @@ sessionBus.listNames(function (error, names) {
                         });
                 case 'random':
                     return new Promise(function (resolve) {
-                        player.Shuffle((e, value) => {
-                            console.log(value);
-                        })
                         player.Shuffle = true;
 
                         resolve('');
