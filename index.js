@@ -1,3 +1,4 @@
+const retry = require('async-retry');
 const mpd = require('mpd-server');
 const dbus = require('dbus-native');
 
@@ -52,12 +53,8 @@ function createMetadataObject(metadata) {
     }, {});
 }
 
-sessionBus.listNames(function (error, names) {
-    // TODO: This only gets the first player that matches
-    const first = names.find(name => name.startsWith('org.mpris.MediaPlayer2.'));
-
-    sessionBus.getService(first).getInterface('/org/mpris/MediaPlayer2', 'org.mpris.MediaPlayer2.Player', function (error, player) {
-
+function startListening(service) {
+    sessionBus.getService(service).getInterface('/org/mpris/MediaPlayer2', 'org.mpris.MediaPlayer2.Player', function (error, player) {
         const mpdServer = mpd(function(command, parameters, connection) {        
             switch (command) {
                 case 'next':
@@ -174,6 +171,35 @@ sessionBus.listNames(function (error, names) {
         
         player.on('Seeked', function () {
             console.log(player);
-        })
-    })
-});
+        });
+    });
+}
+
+async function startServer() {
+    // We never actually resolve this promise, only reject it on error
+    return new Promise((resolve, reject) => {
+        sessionBus.listNames(function (error, names) {
+            // TODO: This only gets the first player that matches
+            let first = names.find(name => name.startsWith('org.mpris.MediaPlayer2.'));
+            if (first) {
+                startListening(first);
+            } else {
+                reject(new Error('No org.mpris.MediaPlayer2 service could be found. Perhaps you don\'t have a media player open yet... This isn\'t an ideal error though'));
+            }
+        });
+    });
+}
+
+(async () => {
+    try {
+        await retry(async () => {
+            await startServer();
+        }, {
+            onRetry: error => console.error(error),
+            retries: 5
+        });
+    } catch (e) {
+        // We need to close the connection on any final failures, otherwise Node won't exit
+        sessionBus.connection.end();
+    }
+})();
